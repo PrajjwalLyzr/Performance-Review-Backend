@@ -29,17 +29,17 @@ def read_google_sheet(url):
     return df
 
 
-def read_google_sheet_emp_data(url):
-    """Reads the Google Sheet and returns it as a DataFrame."""
-    csv_url = convert_google_sheet_url(url)
-    df = pd.read_csv(csv_url)
+# def read_google_sheet_emp_data(url):
+#     """Reads the Google Sheet and returns it as a DataFrame."""
+#     csv_url = convert_google_sheet_url(url)
+#     df = pd.read_csv(csv_url)
 
-    # Rename Google Sheet columns to match Supabase table schema
-    df.rename(columns={
-        "Employee ID": "employee_id",
-        "Employee Name": "employee_name",
-    }, inplace=True)
+#     # Rename Google Sheet columns to match Supabase table schema
+#     df.rename(columns={
+#         "Employee ID": "employee_id",
+#         "Employee Name": "employee_name",
+#     }, inplace=True)
 
-    return df[["employee_id", "employee_name"]]  # Only keep necessary columns
+#     return df[["employee_id", "employee_name"]]  # Only keep necessary columns
 
 
