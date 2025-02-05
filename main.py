@@ -18,6 +18,10 @@ supabase = supabase_client(SUPABASE_KEY=SUPABASE_KEY, SUPABASE_URL=SUPABASE_URL)
 
 app = FastAPI()
 
+@app.get('/')
+async def health_check():
+    return "The Health check is successfull"
+
 # Define request body schema
 class SheetURL(BaseModel):
     url: str
