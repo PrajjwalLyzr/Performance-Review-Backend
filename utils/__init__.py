@@ -1,5 +1,4 @@
-from .utils import convert_google_sheet_url, read_google_sheet, read_google_sheet_emp_data
+from .utils import convert_google_sheet_url, read_google_sheet
 
 __all__ = ['convert_google_sheet_url',
-           'read_google_sheet',
-           'read_google_sheet_emp_data']
+           'read_google_sheet']
