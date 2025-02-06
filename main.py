@@ -51,30 +51,37 @@ def insert_new_data_into_supabase(df):
 
 @app.post("/sync-sheet-to-supabase")
 async def sync_sheet_to_supabase(payload: dict):
-    """Fetch Google Sheet data, compare with Supabase, and insert new records."""
+    """Fetch Google Sheet data, insert new records, and return data in JSON format."""
     try:
         gsheet_link = payload.get("gsheet_url")
         if not gsheet_link:
             raise HTTPException(status_code=400, detail="Google Sheet URL is required")
         
+        # Read data from Google Sheet
         df = read_google_sheet(gsheet_link)
+        json_data = df.to_dict(orient="records")  # Convert DataFrame to JSON
+
+        # Insert new data into Supabase
         result = insert_new_data_into_supabase(df)
-        return result
+
+        return {
+            "insert_result": result,
+            "google_sheet_data": json_data  # Returning all Google Sheet data
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
 
-
 @app.post("/refresh-sheet")
 async def refresh_sheet(payload: dict):
-    """Refresh Google Sheet data and update Supabase tables accordingly."""
+    """Refresh Google Sheet data and update Supabase tables accordingly, returning new data if any."""
     try:
         gsheet_link = payload.get("gsheet_url")
         if not gsheet_link:
             raise HTTPException(status_code=400, detail="Google Sheet URL is required")
 
         df = read_google_sheet(gsheet_link)
-        
+
         # Fetch existing data from both tables
         existing_zomato_data = supabase.table("zomato_emp_data").select("employee_id").execute().data
         existing_emp_data = supabase.table("emp_data").select("employee_id", "status").execute().data
@@ -93,10 +100,18 @@ async def refresh_sheet(payload: dict):
 
         # Find new employees in the sheet but not in `zomato_emp_data`
         new_data = df[~df["employee_id"].isin(existing_emp_ids)]
+        
         if not new_data.empty:
+            # Insert new data into Supabase
             await sync_sheet_to_supabase({"gsheet_url": gsheet_link})
+            new_data_json = new_data.to_dict(orient="records")  # Convert DataFrame to JSON
+            return {
+                "message": "Refresh completed successfully",
+                "new_data": new_data_json
+            }
+        else:
+            return {"message": "No new data found in the sheet"}
 
-        return {"message": "Refresh completed successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
