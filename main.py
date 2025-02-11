@@ -107,7 +107,7 @@ async def refresh_sheet(payload: dict):
             new_data_json = new_data.to_dict(orient="records")  # Convert DataFrame to JSON
             return {
                 "message": "Refresh completed successfully",
-                "new_data": new_data_json
+                "google_sheet_data": new_data_json
             }
         else:
             return {"message": "No new data found in the sheet"}
