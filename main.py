@@ -6,6 +6,8 @@ from utils import read_google_sheet
 from database import supabase_client
 import os
 from dotenv import load_dotenv
+import numpy as np
+
 
 load_dotenv()
 
@@ -49,28 +51,75 @@ def insert_new_data_into_supabase(df):
 
 
 
+# @app.post("/sync-sheet-to-supabase")
+# async def sync_sheet_to_supabase(payload: dict):
+#     """Fetch Google Sheet data, insert new records, and return data in JSON format."""
+#     try:
+#         gsheet_link = payload.get("gsheet_url")
+#         if not gsheet_link:
+#             raise HTTPException(status_code=400, detail="Google Sheet URL is required")
+        
+#         # Read data from Google Sheet
+#         df = read_google_sheet(gsheet_link)
+#         json_data = df.to_dict(orient="records")  # Convert DataFrame to JSON
+
+#         # Insert new data into Supabase
+#         result = insert_new_data_into_supabase(df)
+
+#         return {
+#             "insert_result": result,
+#             "google_sheet_data": json_data  # Returning all Google Sheet data
+#         }
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/sync-sheet-to-supabase")
 async def sync_sheet_to_supabase(payload: dict):
-    """Fetch Google Sheet data, insert new records, and return data in JSON format."""
+    """Sync Google Sheet data with Supabase, ensuring up-to-date and unique employee records."""
     try:
         gsheet_link = payload.get("gsheet_url")
         if not gsheet_link:
             raise HTTPException(status_code=400, detail="Google Sheet URL is required")
-        
+
         # Read data from Google Sheet
         df = read_google_sheet(gsheet_link)
-        json_data = df.to_dict(orient="records")  # Convert DataFrame to JSON
 
-        # Insert new data into Supabase
-        result = insert_new_data_into_supabase(df)
+        # Fetch existing data from `zomato_emp_data`
+        existing_data = supabase.table("zomato_emp_data").select("employee_id").execute().data
+        existing_emp_ids = {row["employee_id"] for row in existing_data}
+
+        # Get employee IDs from the Google Sheet
+        sheet_emp_ids = set(df["employee_id"])
+
+        # Find new employees (in Sheet but not in Supabase)
+        new_employees = df[~df["employee_id"].isin(existing_emp_ids)]
+
+        # Find removed employees (in Supabase but not in Sheet)
+        removed_emp_ids = existing_emp_ids - sheet_emp_ids
+
+        # Insert new employees into Supabase if any
+        if not new_employees.empty:
+            new_employees_json = new_employees.to_dict(orient="records")
+            supabase.table("zomato_emp_data").insert(new_employees_json).execute()
+
+        # Delete removed employees from Supabase if any
+        if removed_emp_ids:
+            supabase.table("zomato_emp_data").delete().in_("employee_id", list(removed_emp_ids)).execute()
+
+        # Return the updated Google Sheet data (ensuring unique employee IDs)
+        df = df.drop_duplicates(subset=["employee_id"])
+        df = df.replace([np.inf, -np.inf], np.nan).fillna("")  # Ensure JSON compliance
+        json_data = df.to_dict(orient="records")
 
         return {
-            "insert_result": result,
-            "google_sheet_data": json_data  # Returning all Google Sheet data
+            "message": "Sync completed successfully",
+            "google_sheet_data": json_data
         }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
 
 @app.post("/refresh-sheet")
 async def refresh_sheet(payload: dict):
